@@ -82,7 +82,50 @@ unificaLit phi psi = case (phi, psi) of
                           then unificaC_aux (zip lt1 lt2)              -- buscamos la unificación de los
                                                                        -- elementos de cada predicado.
                           else error "Imposible unificar"              -- en otro caso, falla.
-    (Eq t1 s1, Eq t2 s2) -> unificaC_aux[(t1, t2),(s1, s2)]            -- Si es una equivalencia,
+    (Eq t1 s1, Eq t2 s2) -> unificaC_aux[(t1, t2), (s1, s2)]           -- Si es una equivalencia,
                                                                        -- buscamos la unificación de
                                                                        -- los primeros elementos y los segundos.
     __ -> error "Imposible unificar"                                   -- en cualquier otro caso, falla.
+
+unificaLit_aux :: [(Lit, Lit)] -> Subst
+unificaLit_aux pares = case pares of
+    [] -> []
+    (l1, l2):lp -> case (l1, l2) of
+        (TrueF, TrueF) -> unificaLit_aux lp                                                         -- Si son dos True, se ignoran y se continua
+        (FalseF, FalseF) -> unificaLit_aux lp                                                       -- Análogo para False
+        (TrueF, FalseF) -> error "Imposible unificar"                                               -- Si es un True y un False, es imposible unificar
+        (FalseF, TrueF) -> error "Imposible unificar"                                               -- Análogo para False y True
+        (Pr p lt1, Pr q lt2) -> if p /= q || length lt1 /= length lt2                               -- Si son dos predicados distintos
+                                then error "Imposible unificar"                                     -- Falla
+                                else compSus d (unificaLit_aux lps)                                 -- en otro caso, componemos la sustitución 'd'
+                                                                                                    -- con la unificación del resto de literales,
+                                                                                                    -- a las cuales se les aplica 'd'
+                                where d = unificaC_aux (zip lt1 lt2)                                -- la sustitución 'd' a partir de la unificación
+                                                                                                    -- de la lista de terminos de los predicados
+                                      lps = [(apsubL lit1 d, apsubL lit2 d) | (lit1, lit2) <- lp]   -- La nueva lista de literales
+                                                                                                    -- a las que se les aplica la sustitución 'd'
+        (Eq l1 s1, Eq l2 s2) -> compSus d (unificaLit_aux lps)                                      -- Componemos la sustitución 'd'
+                                                                                                    -- con la unificación del resto de literales,
+                                                                                                    -- a las cuales se les aplica 'd'
+                                where d = unificaC_aux[(l1, l2), (l1, s2)]                          -- la sustitución 'd' a partir de la unificación
+                                                                                                    -- de los términos de las equivalencias
+                                      lps = [(apsubL lit1 d, apsubL lit2 d) | (lit1, lit2) <- lp]   -- La nueva lista de literales
+                                                                                                    -- a las que se les aplica la sustitución 'd'
+        __ -> error "Imposible unificar"                                                            -- en cualquier otro caso, falla.
+
+-- Dada una lista de literales, devuelve el unificador más general (umg)
+mmE :: [Lit] -> Subst
+mmE = unificaLit_aux.hazPares
+
+-- Dada una lista de literales y una sustitución, devuelve la lista de literales
+-- donde a cada literal se le ha aplicado la sustitución
+sust_G :: [Lit] -> Subst -> [Lit]
+sust_G l sus = case l of
+    [] -> []
+    x:xs -> nub ((apsubL x sus):(sust_G xs sus))
+
+-- Dado una lista, devuelve su longitud
+card :: [a] -> Int
+card l = case l of
+    [] -> 0
+    x:xs -> 1 + (card xs)

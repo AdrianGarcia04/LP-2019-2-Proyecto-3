@@ -38,3 +38,13 @@ apsubT t sus = case t of
                   else apsubT (V x) xs      -- en otro caso, continuamos
   F f lt -> F f [apsubT t sus | t <- lt]    -- Si es una función, aplicamos la
                                             -- sustitución a cada elemento
+
+-- Dado una literal y una sustitución, devuelve una nueva literal con la
+-- sustitución aplicada.
+apsubL :: Lit -> Subst -> Lit
+apsubL l sus = case l of
+  TrueF -> TrueF
+  FalseF -> FalseF
+  Pr p ll -> Pr p [(apsubT lx sus) | lx <- ll]
+  Eq l1 l2 -> Eq (apsubT l1 sus) (apsubT l2 sus)
+                                            -- sustitución a cada elemento
